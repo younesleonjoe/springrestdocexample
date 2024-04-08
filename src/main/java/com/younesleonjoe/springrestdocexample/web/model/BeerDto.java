@@ -1,9 +1,7 @@
 package com.younesleonjoe.springrestdocexample.web.model;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Null;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -22,11 +20,13 @@ public class BeerDto {
 
   @Null private Integer version;
 
-  @Null private OffsetDateTime createdDate;
+  @Null private OffsetDateTime createdAt;
 
-  @Null private OffsetDateTime lastModifiedDate;
+  @Null private OffsetDateTime updatedAt;
 
-  @NotBlank private String beerName;
+  @NotBlank
+  @Size(min = 3, max = 100)
+  private String beerName;
 
   @NotNull private BeerStyleEnum beerStyle;
 
