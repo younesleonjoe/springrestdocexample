@@ -5,9 +5,9 @@ import static org.mockito.BDDMockito.given;
 // import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.*;
-import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
-import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.request.RequestDocumentation.*;
+import static org.springframework.restdocs.snippet.Attributes.key;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,10 +27,13 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.restdocs.constraints.ConstraintDescriptions;
+import org.springframework.restdocs.payload.FieldDescriptor;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.StringUtils;
 
 @ExtendWith(RestDocumentationExtension.class)
-@AutoConfigureRestDocs
+@AutoConfigureRestDocs(uriScheme="https", uriHost="younesleonjoe.com", uriPort=443)
 @WebMvcTest(BeerController.class)
 @ComponentScan(basePackages = "com.younesleonjoe.springrestdocexample.web.mapper")
 class BeerControllerTest {
@@ -53,12 +56,19 @@ class BeerControllerTest {
         .andExpect(status().isOk())
         .andDo(
             document(
-                "v1/beers",
+                "v1/beers-get",
                 pathParameters(
                     parameterWithName("id").description("UUID of the desired beer to get.")),
-                queryParameters(
-                    parameterWithName("isCold").description("Is Beer Cold Query Param")),
-                responseFields(fieldWithPath("id").description("Id of Beer"))));
+                responseFields(
+                    fieldWithPath("id").description("Id of Beer"),
+                    fieldWithPath("version").description("Version number"),
+                    fieldWithPath("createdAt").description("date Created"),
+                    fieldWithPath("updatedAt").description("Date Updated"),
+                    fieldWithPath("beerName").description("Beer Name"),
+                    fieldWithPath("beerStyle").description("Beer Style"),
+                    fieldWithPath("upc").description("UPC of Beer"),
+                    fieldWithPath("price").description("Price"),
+                    fieldWithPath("quantityOnHand").description("Quantity On Hand"))));
   }
 
   @Test
@@ -66,9 +76,24 @@ class BeerControllerTest {
     BeerDto beerDto = getValidBeerDto();
     String beerDtoJson = objectMapper.writeValueAsString(beerDto);
 
+    ConstrainedFields fields = new ConstrainedFields(BeerDto.class);
+
     mockMvc
         .perform(post("/api/v1/beers").contentType(MediaType.APPLICATION_JSON).content(beerDtoJson))
-        .andExpect(status().isCreated());
+        .andExpect(status().isCreated())
+        .andDo(
+            document(
+                "v1/beers-new",
+                requestFields(
+                    fields.withPath("id").ignored(),
+                    fields.withPath("beerName").description("Beer Name"),
+                    fields.withPath("version").ignored(),
+                    fields.withPath("createdAt").ignored(),
+                    fields.withPath("updatedAt").ignored(),
+                    fields.withPath("beerStyle").description("Beer Style"),
+                    fields.withPath("upc").description("UPC of Beer").attributes(),
+                    fields.withPath("price").description("Price"),
+                    fields.withPath("quantityOnHand").ignored())));
   }
 
   @Test
@@ -91,5 +116,23 @@ class BeerControllerTest {
         .price(new BigDecimal("9.99"))
         .upc(123123123123L)
         .build();
+  }
+
+  private static class ConstrainedFields {
+
+    private final ConstraintDescriptions constraintDescriptions;
+
+    ConstrainedFields(Class<?> input) {
+      this.constraintDescriptions = new ConstraintDescriptions(input);
+    }
+
+    private FieldDescriptor withPath(String path) {
+      return fieldWithPath(path)
+          .attributes(
+              key("constraints")
+                  .value(
+                      StringUtils.collectionToDelimitedString(
+                          this.constraintDescriptions.descriptionsForProperty(path), ". ")));
+    }
   }
 }
