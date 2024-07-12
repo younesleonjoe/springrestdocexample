@@ -4,12 +4,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 // import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.request.RequestDocumentation.*;
 import static org.springframework.restdocs.snippet.Attributes.key;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.younesleonjoe.springrestdocexample.domain.Beer;
 import com.younesleonjoe.springrestdocexample.repository.BeerRepository;
@@ -18,6 +20,7 @@ import com.younesleonjoe.springrestdocexample.web.model.BeerStyleEnum;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,14 +29,17 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.MediaType;
+import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
 import org.springframework.restdocs.constraints.ConstraintDescriptions;
 import org.springframework.restdocs.payload.FieldDescriptor;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.WebApplicationContext;
 
 @ExtendWith(RestDocumentationExtension.class)
-@AutoConfigureRestDocs(uriScheme="https", uriHost="younesleonjoe.com", uriPort=443)
+@AutoConfigureRestDocs(uriScheme = "https", uriHost = "younesleonjoe.com", uriPort = 443)
 @WebMvcTest(BeerController.class)
 @ComponentScan(basePackages = "com.younesleonjoe.springrestdocexample.web.mapper")
 class BeerControllerTest {
@@ -43,6 +49,23 @@ class BeerControllerTest {
   @Autowired ObjectMapper objectMapper;
 
   @MockBean BeerRepository beerRepository;
+
+  BeerDto beerDto;
+  String beerDtoJson;
+
+  @BeforeEach
+  void setUp(
+      WebApplicationContext webApplicationContext,
+      RestDocumentationContextProvider restDocumentation)
+      throws JsonProcessingException {
+    this.mockMvc =
+        MockMvcBuilders.webAppContextSetup(webApplicationContext)
+            .apply(documentationConfiguration(restDocumentation))
+            .build();
+
+    beerDto = getValidBeerDto();
+    beerDtoJson = objectMapper.writeValueAsString(beerDto);
+  }
 
   @Test
   void getBeerById() throws Exception {
@@ -73,11 +96,7 @@ class BeerControllerTest {
 
   @Test
   void saveNewBeer() throws Exception {
-    BeerDto beerDto = getValidBeerDto();
-    String beerDtoJson = objectMapper.writeValueAsString(beerDto);
-
     ConstrainedFields fields = new ConstrainedFields(BeerDto.class);
-
     mockMvc
         .perform(post("/api/v1/beers").contentType(MediaType.APPLICATION_JSON).content(beerDtoJson))
         .andExpect(status().isCreated())
@@ -98,9 +117,6 @@ class BeerControllerTest {
 
   @Test
   void updateBeerById() throws Exception {
-    BeerDto beerDto = getValidBeerDto();
-    String beerDtoJson = objectMapper.writeValueAsString(beerDto);
-
     mockMvc
         .perform(
             put("/api/v1/beers/" + UUID.randomUUID())
